@@ -278,12 +278,26 @@ impl SuffixScheme for AppendTimestamp {
         } else {
             (suffix, None)
         };
-        NaiveDateTime::parse_from_str(timestamp_str, self.format)
-            .map(|_| TimestampSuffix {
-                timestamp: timestamp_str.to_string(),
-                number: n,
-            })
-            .ok()
+
+        let numbers = timestamp_str
+            .chars()
+            .filter(|&c| c.is_numeric())
+            .map(|c| c.to_string())
+            .collect::<Vec<String>>();
+
+        if numbers.len() <= 8 {
+            NaiveDateTime::parse_from_str(
+                &format!("{:1<8}T000000", numbers.join("")),
+                "%Y%m%dT%H%M%S",
+            )
+        } else {
+            NaiveDateTime::parse_from_str(timestamp_str, self.format)
+        }
+        .map(|_| TimestampSuffix {
+            timestamp: timestamp_str.to_string(),
+            number: n,
+        })
+        .ok()
     }
     fn too_old(&self, suffix: &TimestampSuffix, file_number: usize) -> bool {
         match self.file_limit {

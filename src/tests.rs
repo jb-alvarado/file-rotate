@@ -365,6 +365,50 @@ fn arbitrary_bytes(count: usize) {
 }
 
 #[test]
+fn timestamp_scan_suffixes() {
+    struct TestCase {
+        format: &'static str,
+        suffixes: &'static [&'static str],
+    }
+
+    let cases = [
+        TestCase {
+            format: "%Y%m%dT%H%M%S",
+            suffixes: &["20220201T101010", "20220202T101010"],
+        },
+        TestCase {
+            format: "%Y-%m-%d",
+            suffixes: &["2022-02-01", "2022-02-02"],
+        },
+        TestCase {
+            format: "%Y-%m-%d",
+            suffixes: &["2021", "2022"],
+        },
+    ];
+
+    for (i, case) in cases.iter().enumerate() {
+        println!("Case {}", i);
+        let tmp_dir = TempDir::new("file-rotate-test").unwrap();
+        let dir = tmp_dir.path();
+        let log_path = dir.join("file");
+
+        for suffix in case.suffixes {
+            std::fs::File::create(dir.join(format!("file.{}", suffix))).unwrap();
+        }
+
+        let scheme = AppendTimestamp::with_format(
+            case.format,
+            FileLimit::MaxFiles(1), // has no effect on this test
+            DateFrom::DateYesterday,
+        );
+
+        let suffixes = scheme.scan_suffixes(&log_path);
+        assert_eq!(suffixes.len(), case.suffixes.len());
+        println!("Passed\n");
+    }
+}
+
+#[test]
 fn rotate_by_time_frequency() {
     // Test time frequency by hours.
     test_time_frequency(
